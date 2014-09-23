@@ -1,8 +1,15 @@
-(require 'intel-shared)
-(require 'intel-config)
 (require 'repo)
 (require 'json)
 
+(defvar gerrit-confs '())
+
+(defstruct gerrit-conf
+  name
+  host
+  protocol
+  port
+  secured)
+  
 (defconst gerrit-log-buffer "*gerrit-log*")
 
 (defconst gerrit-curl-cmd "curl")
@@ -30,9 +37,6 @@
 -d username=%s&password=%s " gerrit-url "/login"))
 
 (defconst gerrit-buf-fmt " *gerrit:%d*")
-
-(defconst gerrit-port-branch "gerrit-port")
-(defconst gerrit-port-patch  (concat gerrit-port-branch ".patch"))
 
 (defun gerrit-error (string)
     (gerrit-log (concat "Error: " string))
@@ -268,30 +272,6 @@ With a prefix argument, visit in other window."
   "gerrit-show major mode.
 Special commands:
 \\{gerrit-show-mode-map}")
-
-(defun gerrit-port-patch-file (file port-string)
-  (with-current-buffer (find-file-existing file)
-    (replace-string "Subject:" (format "Subject: [PORT FROM %s]" port-string))
-    (replace-string "Change-Id:" "Orig-Change-Id:")
-    (save-buffer)
-    (kill-buffer (current-buffer))))
-
-(defun gerrit-port (id)
-  (interactive "nPatch number: ")
-  (let ((old-project intel-project-name))
-    (call-interactively 'intel-switch-project)
-    (let* ((data (gerrit-get-patchset-data id))
-	   (default-directory (gerrit-fetch id data)))
-      (shell-command (format "repo start %s . && git format-patch -k -1 --stdout FETCH_HEAD > %s"
-			     gerrit-port-branch gerrit-port-patch))
-      (let ((file (car (file-expand-wildcards gerrit-port-patch)))
-	    (inhibit-read-only t)
-	    (from-name (upcase (replace-regexp-in-string ".*/" "" (assoc-default 'branch data)))))
-	(gerrit-port-patch-file file from-name)
-	(when (not (= 0 (call-process "git" file nil nil "am" "-k")))
-	  (shell-command (format "git apply --index %s && git am --resolved" file)))
-	(async-shell-command "rm gerrit-port.patch && repo upload . && repo abandon gerrit-port ." (get-buffer-create "*repo*"))))
-    (intel-switch-project old-project)))
 
 ;; Open in web browser
 (defun gerrit-open (id)
