@@ -23,20 +23,20 @@
 			     (when gerrit-port (concat ":" gerrit-port))))
 (defconst gerrit-secured nil)
 
-(defconst gerrit-url-fmt (format "%s/%%d" gerrit-url))
+(defconst gerrit-url-fmt (format "%s/%%s" gerrit-url))
 
 (defconst gerrit-curl-args-fmt
   (concat "-b " gerrit-cookie " -c " gerrit-cookie
 	  (if gerrit-secured "" " --insecure") " \
   -s -H Accept:application/json,application/jsonrequest \
-" gerrit-url "/changes/?q=%d&o=CURRENT_REVISION\
+" gerrit-url "/changes/?q=%s&o=CURRENT_REVISION\
 &o=CURRENT_COMMIT&o=CURRENT_FILES&o=DETAILED_LABELS"))
 
 (defconst gerrit-curl-cookie-fmt
   (concat "-c " gerrit-cookie (if gerrit-secured "" " --insecure") " \
 -d username=%s&password=%s " gerrit-url "/login"))
 
-(defconst gerrit-buf-fmt " *gerrit:%d*")
+(defconst gerrit-buf-fmt " *gerrit:%s*")
 
 (defun gerrit-error (string)
     (gerrit-log (concat "Error: " string))
@@ -273,10 +273,16 @@ With a prefix argument, visit in other window."
 Special commands:
 \\{gerrit-show-mode-map}")
 
+(defun gerrit-search-patch (query)
+  "Search gerrit patch based on a string (change id, patch number, sha1, ...)"
+  (interactive (list (read-string "Search: " (substring-no-properties (word-at-point)))))
+  (cdar (gerrit-get-patchset-data query '(id))))
+
 ;; Open in web browser
-(defun gerrit-open (id)
-  (interactive (list (read-number "Patch number: " (gerrit-current-id))))
-  (browse-url (format gerrit-url-fmt id)))
+(defun gerrit-open (query)
+  "Search gerrit patch based on a string a open it in web browser"
+  (interactive (list (read-string "Browse patch: " (substring-no-properties (word-at-point)))))
+  (browse-url (format gerrit-url-fmt (gerrit-search-patch query))))
 
 ;; Other tools
 (defun gerrit-apply-patch-list (&optional branch)
