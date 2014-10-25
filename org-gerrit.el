@@ -1,3 +1,4 @@
+(require 'org)
 (require 'gerrit)
 
 (defcustom org-gerrit-file nil
@@ -11,6 +12,19 @@
 
 (defcustom org-gerrit-my-name nil
   "Your username as it appears in gerrit web interface."
+  :group 'org-gerrit)
+
+(defcustom org-gerrit-item-list
+  '(author project branch message)
+  "List of item to display."
+  :group 'org-gerrit)
+
+(defcustom org-gerrit-show-diff-stat t
+  "Display the diff stat."
+  :group 'org-gerrit)
+
+(defcustom org-gerrit-show-reviews t
+  "Display the reviews."
   :group 'org-gerrit)
 
 (defun org-gerrit-goto-current-headline ()
@@ -47,55 +61,65 @@
 		"IN-REVIEW"
 	      (concat "REVIEW+" (number-to-string review-score))))))))
 
-(defun org-gerrit-update-headline (data status)
-  (save-excursion
-    (org-gerrit-goto-current-headline)
-    (forward-char (1+ (org-current-level)))
+(defun org-gerrit-insert-headline (data id)
+  (let ((status (org-gerrit-get-patchset-tag data)))
     (delete-region (point) (line-end-position))
     (insert status " "
 	    (org-make-link-string (format gerrit-url-fmt id)
-				  (format "Patch %d" id))
+				  (format "Patch %s" id))
 	    " "
 	    (assoc-default 'subject data))))
 
-(defvar org-gerrit-header-list '(author project branch message))
+(defun org-gerrit-insert-items (data)
+  (dolist (item  org-gerrit-item-list)
+    (insert (concat (capitalize (symbol-name item))
+		    ": "
+		    (assoc-default item data)
+		    "\n")))
+  (forward-line -1))
 
-(defun org-gerrit-status (id &optional no-files)
-  (let ((data (gerrit-get-patchset-data id)))
-    (org-gerrit-update-headline data (org-gerrit-get-patchset-tag data))
-    (with-temp-buffer
-      (insert (mapconcat (lambda (x) (concat (capitalize (symbol-name x))
-					     ": "
-					     (assoc-default x data)))
-			 org-gerrit-header-list "\n"))
-      (unless no-files
-	(dolist (file (assoc-default 'files data))
-	  (insert (format "\n%s: +%d,-%d" (car file)
-			  (or (assoc-default 'lines_inserted file) 0)
-			  (or (assoc-default 'lines_deleted file) 0))))
-	(insert "\n"))
-      (dolist (review (assoc-default 'reviews data))
-	(unless (= 0 (assoc-default 'value review))
-	  (insert (format "\n%s: %d" (gerrit-rec-assoc review '(name))
-			  (gerrit-rec-assoc review '(value))))))
-      (buffer-string))))
+(defun org-gerrit-insert-diff-stat (data)
+  (when org-gerrit-show-diff-stat
+    (dolist (file (assoc-default 'files data))
+      (insert (format "\n%s: +%d,-%d" (car file)
+		      (or (assoc-default 'lines_inserted file) 0)
+		      (or (assoc-default 'lines_deleted file) 0))))
+    (insert "\n")))
+
+(defun org-gerrit-insert-reviews (data)
+  (when org-gerrit-show-reviews
+    (dolist (review (assoc-default 'reviews data))
+      (unless (= 0 (assoc-default 'value review))
+	(insert (format "\n%s: %d" (gerrit-rec-assoc review '(name))
+			(gerrit-rec-assoc review '(value))))))))
+
+(defun org-gerrit-update-status (&optional no-files)
+  (interactive)
+  (save-excursion
+    (let* ((id (org-entry-get (point) "ID"))
+	   (data (gerrit-get-patchset-data id)))
+      (org-gerrit-goto-current-headline)
+      (forward-char (1+ (org-current-level)))
+      (delete-region (point) (org-entry-end-position))
+      (org-gerrit-insert-headline data id)
+      (org-entry-put (point) "ID" id)
+      (goto-char (org-entry-end-position))
+      (insert "\n")
+      (org-gerrit-insert-items data)
+      (org-gerrit-insert-diff-stat data)
+      (org-gerrit-insert-reviews data)
+      (indent-region (org-entry-beginning-position) (org-entry-end-position)))))
 
 (defun org-gerrit-insert-patchset-headline (id &optional subheading)
   "Insert a new headline for patchset ID and show its relevant
 data."
   (interactive "nPatch number: ")
   (save-excursion
-    (if subheading (org-insert-subheading "") (org-insert-heading))
-    (insert (org-make-link-string (format gerrit-url-fmt id)
-				  (format "Patch %d" id)))
-    (let ((indent (make-string (1+ (org-current-level)) ? )))
-      (insert (format "\n%s#+BEGIN_SRC emacs-lisp :exports results
-%s(org-gerrit-status %d)\n%s#+END_SRC" indent indent id indent)))
-    (beginning-of-line)
-    (org-babel-execute-src-block)
-    (outline-previous-visible-heading 1)
-    (org-hide-block-toggle t)
-    (hide-subtree)))
+    (if subheading
+	(org-insert-subheading "")
+      (org-insert-heading))
+    (org-entry-put (point) "ID" (number-to-string id))
+    (org-gerrit-update-status)))
 
 (defun org-gerrit-update-file ()
   (interactive)
