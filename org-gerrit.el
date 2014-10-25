@@ -97,4 +97,23 @@ data."
     (org-hide-block-toggle t)
     (hide-subtree)))
 
+(defun org-gerrit-update-file ()
+  (interactive)
+  (when org-gerrit-file
+    (with-current-buffer (find-file-noselect org-gerrit-file)
+      (save-excursion
+	(goto-char (point-min))
+	(outline-next-visible-heading 1)
+	(org-babel-execute-subtree)
+	(save-buffer)))))
+
+(defun org-gerrit-get-patch (id)
+  (interactive "nPatch number: ")
+  (unless org-gerrit-file
+    (error "org-gerrit-file is undefined"))
+    (with-current-buffer (find-file-noselect org-gerrit-file)
+      (save-excursion
+	(goto-char (point-max))
+	(org-gerrit-insert-patchset-headline id))))
+
 (provide 'org-gerrit)
