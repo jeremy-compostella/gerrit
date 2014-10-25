@@ -37,7 +37,7 @@
   (concat "-c " gerrit-cookie (if gerrit-secured "" " --insecure") " \
 -d username=%s&password=%s " gerrit-url "/login"))
 
-(defconst gerrit-buf-fmt " *gerrit:%s*")
+(defconst gerrit-buf-name " *gerrit*")
 
 (defun gerrit-error (string)
     (gerrit-log (concat "Error: " string))
@@ -135,7 +135,7 @@
 
 (defun gerrit-get-patchset-data (id &optional data-list)
   "Retrieves ID patchset data synchronously (could take a while...)."
-  (with-current-buffer (get-buffer-create (format gerrit-buf-fmt id))
+  (with-current-buffer (generate-new-buffer gerrit-buf-name)
     (condition-case nil
 	(gerrit-do-get-patchset-data id data-list)
       (error (when (y-or-n-p "Gerrit data retrieval failed, do you\
@@ -147,7 +147,7 @@
 (defun gerrit-async-get-patchset-data (id callback &optional data-list)
   "Retrieves ID gerrit patch data asynchronously. The CALLBACK
 function prototype is foo(id data)."
-  (with-current-buffer (get-buffer-create (format gerrit-buf-fmt id))
+  (with-current-buffer (generate-new-buffer gerrit-buf-name)
     (set-process-sentinel
      (apply 'start-process gerrit-curl-cmd (current-buffer)
 	    gerrit-curl-cmd (split-string (format gerrit-curl-args-fmt id)))
