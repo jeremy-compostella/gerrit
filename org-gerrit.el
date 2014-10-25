@@ -1,23 +1,68 @@
 (require 'gerrit)
 
-(defun org-gerrit-update-headline (data)
+(defcustom org-gerrit-file nil
+  "File to store org-gerrit headlines."
+  :group 'org-gerrit)
+
+(defcustom org-gerrit-ignored-reviewer-list '()
+  "List of user which you don't care for their opinion.  Usually
+  bots."
+  :group 'org-gerrit)
+
+(defcustom org-gerrit-my-name nil
+  "Your username as it appears in gerrit web interface."
+  :group 'org-gerrit)
+
+(defun org-gerrit-goto-current-headline ()
+  (if (org-at-heading-p)
+      (goto-char (line-beginning-position))
+    (outline-next-visible-heading -1)))
+
+(defun org-gerrit-get-patchset-tag (data)
+  (or (and (equal (assoc-default 'status data) "MERGED") "MERGED")
+      (and (equal (assoc-default 'status data) "ABANDONED") "ABANDONED")
+      (let ((review-score 0)
+	    tag)
+	(if (and org-gerrit-my-name
+		 (not (string= org-gerrit-my-name (assoc-default 'author data))))
+	    (catch 'tag
+	      (mapc (lambda(review)
+		      (when (equal (assoc-default 'name review) org-gerrit-my-name)
+			(throw 'tag "REVIEWED")))
+		    (assoc-default 'reviews data))
+	      "TO-REVIEW")
+	  (catch 'tag
+	    (mapc (lambda(review)
+		    (unless (member (assoc-default 'name review) org-gerrit-ignored-reviewer-list)
+		      (when (equal (assoc-default 'value review) 2)
+			(throw 'tag "APPROVED"))
+		      (when (= (assoc-default 'value review) -1)
+			(throw 'tag "REVIEW-1"))
+		      (when (< (assoc-default 'value review) -1)
+			(throw 'tag "REFUSED"))
+		      (unless (equal (assoc-default 'name review) (assoc-default 'author data))
+			(setq review-score (+ (assoc-default 'value review) review-score)))))
+		  (assoc-default 'reviews data))
+	    (if (zerop review-score)
+		"IN-REVIEW"
+	      (concat "REVIEW+" (number-to-string review-score))))))))
+
+(defun org-gerrit-update-headline (data status)
   (save-excursion
     (org-gerrit-goto-current-headline)
-    (re-search-forward "\\[\\[.*\\]\\[\\(.*\\)\\]\\]")
+    (forward-char (1+ (org-current-level)))
     (delete-region (point) (line-end-position))
-    (insert (let ((str (concat " " (assoc-default 'subject data)))
-		  (cur-col (+ (length (match-string 1)) (1+ (org-current-level)))))
-	      (if (< fill-column (+ cur-col (length str)))
-		  (truncate-string-to-width str (- fill-column cur-col) nil nil
-					    (char-to-string (decode-char 'ucs #x2026)))
-		str)))
-    (org-set-tags-to (gerrit-get-patchset-tag data))))
+    (insert status " "
+	    (org-make-link-string (format gerrit-url-fmt id)
+				  (format "Patch %d" id))
+	    " "
+	    (assoc-default 'subject data))))
 
 (defvar org-gerrit-header-list '(author project branch message))
 
 (defun org-gerrit-status (id &optional no-files)
   (let ((data (gerrit-get-patchset-data id)))
-    (org-gerrit-update-headline data)
+    (org-gerrit-update-headline data (org-gerrit-get-patchset-tag data))
     (with-temp-buffer
       (insert (mapconcat (lambda (x) (concat (capitalize (symbol-name x))
 					     ": "

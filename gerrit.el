@@ -298,34 +298,4 @@ region is selected it will apply on the entire buffer."
 	(save-excursion
 	  (gerrit-apply (string-to-number (match-string 1)) branch))))))
 
-;; OrgMode gerrit tools
-(defsubst org-gerrit-goto-current-headline ()
-  (if (org-at-heading-p)
-      (goto-char (line-beginning-position))
-    (outline-next-visible-heading -1)))
-
-(defun org-gerrit-current-id ()
-  (save-excursion
-    (org-gerrit-goto-current-headline)
-    (when (re-search-forward "\\[\\[.*\\]\\[Patch \\([0-9]+\\)\\]\\]"
-			     (line-end-position) t)
-      (string-to-number (match-string 1)))))
-
-(defun gerrit-get-patchset-tag (data)
-  (or (and (equal (assoc-default 'status data) "MERGED") "MERGED")
-      (and (equal (assoc-default 'status data) "ABANDONED") "ABANDONED")
-      (let ((review-score 0)
-	    tag)
-	(catch 'tag
-	  (mapc (lambda(review)
-		  (unless (equal (assoc-default 'name review) "cactus")
-		    (when (equal (assoc-default 'value review) 2)
-		      (throw 'tag "APPROVED"))
-		    (when (< (assoc-default 'value review) 0)
-		      (throw 'tag "REFUSED"))
-		    (unless (equal (assoc-default 'name review) (assoc-default 'author data))
-		      (setq review-score (+ (assoc-default 'value review) review-score)))))
-	  (assoc-default 'reviews data))
-	  (int-to-string review-score)))))
-
 (provide 'gerrit)
