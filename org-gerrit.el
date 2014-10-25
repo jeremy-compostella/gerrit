@@ -42,7 +42,9 @@
 	    (catch 'tag
 	      (mapc (lambda(review)
 		      (when (equal (assoc-default 'name review) org-gerrit-my-name)
-			(throw 'tag "REVIEWED")))
+			(let ((value (assoc-default 'value review)))
+			  (throw 'tag (format "REVIEWED%s%d" (if (> value 0) "+" "")
+					      (assoc-default 'value review))))))
 		    (assoc-default 'reviews data))
 	      "TO-REVIEW")
 	  (catch 'tag
