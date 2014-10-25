@@ -124,7 +124,8 @@
 		"\"" "\""
 		(buffer-substring (progn (search-forward "{")
 					 (match-beginning 0))
-				  (point-max)) nil t))))
+				  (point-max))
+		nil t))))
     (kill-buffer (current-buffer))
     (mapcar (lambda (x) (cons x (gerrit-call x json))) data-list)))
 
