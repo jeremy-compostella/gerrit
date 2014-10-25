@@ -97,25 +97,29 @@
   (interactive)
   (save-excursion
     (let* ((id (org-entry-get (point) "ID")))
-      (gerrit-async-get-patchset-data
-       id
-       (curry 'org-gerrit-update-status-callback (point-marker))))))
+      (when id
+	(gerrit-async-get-patchset-data
+	 id
+	 (curry 'org-gerrit-update-status-callback (point-marker)))))))
 
 (defun org-gerrit-update-status-callback (marker id data)
   (with-current-buffer (marker-buffer marker)
     (save-excursion
       (goto-char (marker-position marker))
+      (org-narrow-to-subtree)
+      (show-all)
       (org-gerrit-goto-current-headline)
       (forward-char (1+ (org-current-level)))
-      (delete-region (point) (1- (org-entry-end-position)))
+      (delete-region (point) (point-max))
       (org-gerrit-insert-headline data id)
       (org-entry-put (point) "ID" id)
-      (goto-char (org-entry-end-position))
+      (goto-char (point-max))
       (insert "\n")
       (org-gerrit-insert-items data)
       (org-gerrit-insert-diff-stat data)
       (org-gerrit-insert-reviews data)
-      (indent-region (org-entry-beginning-position) (org-entry-end-position)))))
+      (indent-region (org-entry-beginning-position) (point-max))
+      (widen))))
 
 (defun org-gerrit-insert-patchset-headline (id &optional subheading)
   "Insert a new headline for patchset ID and show its relevant
@@ -134,9 +138,7 @@ data."
     (with-current-buffer (find-file-noselect org-gerrit-file)
       (save-excursion
 	(goto-char (point-min))
-	(outline-next-visible-heading 1)
-	(org-babel-execute-subtree)
-	(save-buffer)))))
+	(org-map-entries 'org-gerrit-update-status)))))
 
 (defun org-gerrit-get-patch (id)
   (interactive "nPatch number: ")

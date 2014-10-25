@@ -126,7 +126,6 @@
 					 (match-beginning 0))
 				  (point-max))
 		nil t))))
-    (kill-buffer (current-buffer))
     (mapcar (lambda (x) (cons x (gerrit-call x json))) data-list)))
 
 (defsubst gerrit-do-get-patchset-data (id data-list)
@@ -142,7 +141,8 @@
       (error (when (y-or-n-p "Gerrit data retrieval failed, do you\
  want to authentificate first and re-try then ?")
 	       (call-interactively 'gerrit-authentificate)
-	       (gerrit-do-get-patchset-data id data-list))))))
+	       (gerrit-do-get-patchset-data id data-list)
+	       (kill-buffer (current-buffer)))))))
 
 (defun gerrit-async-get-patchset-data (id callback &optional data-list)
   "Retrieves ID gerrit patch data asynchronously. The CALLBACK
@@ -157,7 +157,8 @@ function prototype is foo(id data)."
   (with-current-buffer (process-buffer p)
     (if (string= e "finished\n")
 	(funcall callback id (gerrit-buf-to-data data-list))
-      (gerrit-error "gerrit patch %d data retrieval failed." id))))
+      (gerrit-error "gerrit patch %d data retrieval failed." id))
+    (kill-buffer (current-buffer))))
 
 (defsubst gerrit-current-id ()
   (or (and (eq major-mode 'gerrit-show-mode) gerrit-buf-id)
