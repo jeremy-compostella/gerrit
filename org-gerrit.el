@@ -96,11 +96,18 @@
 (defun org-gerrit-update-status (&optional no-files)
   (interactive)
   (save-excursion
-    (let* ((id (org-entry-get (point) "ID"))
-	   (data (gerrit-get-patchset-data id)))
+    (let* ((id (org-entry-get (point) "ID")))
+      (gerrit-async-get-patchset-data
+       id
+       (curry 'org-gerrit-update-status-callback (point-marker))))))
+
+(defun org-gerrit-update-status-callback (marker id data)
+  (with-current-buffer (marker-buffer marker)
+    (save-excursion
+      (goto-char (marker-position marker))
       (org-gerrit-goto-current-headline)
       (forward-char (1+ (org-current-level)))
-      (delete-region (point) (org-entry-end-position))
+      (delete-region (point) (1- (org-entry-end-position)))
       (org-gerrit-insert-headline data id)
       (org-entry-put (point) "ID" id)
       (goto-char (org-entry-end-position))
@@ -133,11 +140,8 @@ data."
 
 (defun org-gerrit-get-patch (id)
   (interactive "nPatch number: ")
-  (unless org-gerrit-file
-    (error "org-gerrit-file is undefined"))
-    (with-current-buffer (find-file-noselect org-gerrit-file)
-      (save-excursion
-	(goto-char (point-max))
-	(org-gerrit-insert-patchset-headline id))))
+  (unless (org-at-heading-p)
+    (goto-char (org-entry-end-position)))
+  (org-gerrit-insert-patchset-headline id))
 
 (provide 'org-gerrit)
