@@ -102,14 +102,6 @@
   "Returns files impacted by the patch."
   (gerrit-rec-assoc (cdadr (assoc 'revisions json)) '(files)))
 
-(defun gerrit-ssh (json)
-  "Returns ssh data to build the fetch command."
-  (let ((data (gerrit-rec-assoc (cdadr (assoc 'revisions json)) '(fetch ssh))))
-    (setf (cdr (assoc 'url data))
-	  (replace-regexp-in-string "^ssh://\\*" (concat "ssh://" gerrit-host)
-				    (assoc-default 'url data)))
-    data))
-
 (defun gerrit-reviews (json)
   "Returns the reviews of this patch."
   (sort (mapcar (lambda (x) (append x nil))
