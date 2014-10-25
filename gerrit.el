@@ -1,5 +1,6 @@
 (require 'repo)
 (require 'json)
+(require 'auth-source)
 
 (defvar gerrit-confs '())
 
@@ -48,15 +49,17 @@
     (insert (concat string "\n")))
   (redisplay))
 
-(defun gerrit-authentificate (username password)
-  (interactive (list (read-string "Username: ")
-		     (password-read "Password: ")))
-  (when (file-exists-p gerrit-cookie)
-    (delete-file gerrit-cookie))
-  (apply 'call-process gerrit-curl-cmd nil nil nil
-	 (split-string (format gerrit-curl-cookie-fmt username password)))
-  (unless (file-exists-p gerrit-cookie)
-    (gerrit-error "Gerrit authentification failed")))
+(defun gerrit-authentificate ()
+  (let ((token (car (auth-source-search :host gerrit-host :port "gerrit"
+					:create t :max 1))))
+    (when (file-exists-p gerrit-cookie)
+      (delete-file gerrit-cookie))
+    (apply 'call-process gerrit-curl-cmd nil nil nil
+	   (split-string (format gerrit-curl-cookie-fmt
+				 (plist-get token :user)
+				 (funcall (plist-get token :secret)))))
+    (unless (file-exists-p gerrit-cookie)
+      (gerrit-error "Gerrit authentification failed"))))
 
 (defun gerrit-rec-assoc (json names)
   (if names
