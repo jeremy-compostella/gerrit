@@ -9,7 +9,7 @@
   protocol
   port
   secured)
-  
+
 (defconst gerrit-log-buffer "*gerrit-log*")
 
 (defconst gerrit-curl-cmd "curl")
