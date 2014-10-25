@@ -27,6 +27,12 @@
   "Display the reviews."
   :group 'org-gerrit)
 
+(defvar org-gerrit-progress-reporter nil
+  "Internal variable to store the progress reporter object.")
+
+(defvar org-gerrit-in-progress-count 0
+  "Internal variable to store the remaining patch to update.")
+
 (defun org-gerrit-goto-current-headline ()
   (if (org-at-heading-p)
       (goto-char (line-beginning-position))
@@ -100,6 +106,8 @@
   (save-excursion
     (let* ((id (org-entry-get (point) "ID")))
       (when id
+	(incf org-gerrit-in-progress-count)
+	(progress-reporter-update org-gerrit-progress-reporter)
 	(gerrit-async-get-patchset-data
 	 id
 	 (curry 'org-gerrit-update-status-callback (point-marker)))))))
@@ -121,7 +129,11 @@
       (org-gerrit-insert-diff-stat data)
       (org-gerrit-insert-reviews data)
       (indent-region (org-entry-beginning-position) (point-max))
-      (widen))))
+      (widen)
+      (decf org-gerrit-in-progress-count)
+      (progress-reporter-update org-gerrit-progress-reporter)
+      (when (zerop org-gerrit-in-progress-count)
+	(progress-reporter-done org-gerrit-progress-reporter)))))
 
 (defun org-gerrit-insert-patchset-headline (id &optional subheading)
   "Insert a new headline for patchset ID and show its relevant
@@ -140,6 +152,8 @@ data."
     (with-current-buffer (find-file-noselect org-gerrit-file)
       (save-excursion
 	(goto-char (point-min))
+	(setq org-gerrit-progress-reporter
+	      (make-progress-reporter "Updating patches status"))
 	(org-map-entries 'org-gerrit-update-status)))))
 
 (defun org-gerrit-get-patch (id)
