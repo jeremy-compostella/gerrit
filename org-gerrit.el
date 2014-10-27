@@ -123,6 +123,7 @@
       (delete-region (point) (point-max))
       (org-gerrit-insert-headline data id)
       (org-entry-put (point) "ID" id)
+      (org-entry-put (point) "server" gerrit-host)
       (goto-char (point-max))
       (insert "\n")
       (org-gerrit-insert-items data)
