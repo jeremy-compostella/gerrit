@@ -73,8 +73,7 @@
   (let ((status (org-gerrit-get-patchset-tag data)))
     (delete-region (point) (line-end-position))
     (insert status " "
-	    (org-make-link-string (format gerrit-url-fmt id)
-				  (format "Patch %s" id))
+	    (org-make-link-string (format gerrit-url-fmt id) id)
 	    " "
 	    (assoc-default 'subject data))))
 
