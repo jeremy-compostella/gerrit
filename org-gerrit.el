@@ -27,7 +27,7 @@
   "Display the reviews."
   :group 'org-gerrit)
 
-(defvar org-gerrit-progress-reporter nil
+(defvar org-gerrit-progress-reporter (make-progress-reporter "Updating patches status")
   "Internal variable to store the progress reporter object.")
 
 (defvar org-gerrit-in-progress-count 0
@@ -152,8 +152,6 @@ data."
     (with-current-buffer (find-file-noselect org-gerrit-file)
       (save-excursion
 	(goto-char (point-min))
-	(setq org-gerrit-progress-reporter
-	      (make-progress-reporter "Updating patches status"))
 	(org-map-entries 'org-gerrit-update-status)))))
 
 (defun org-gerrit-get-patch (id)
